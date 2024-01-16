@@ -114,9 +114,13 @@ def min_value(board, turn, player):
     return min_value
 
 class Board:
-    grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
-
+    grid = np.array([[0, 0, 0, 0, 0, 0], 
+                     [0, 0, 0, 0, 0, 0], 
+                     [0, 0, 0, 0, 0, 0], 
+                     [0, 0, 0, 0, 0, 0], 
+                     [0, 0, 0, 0, 0, 0], 
+                     [0, 0, 0, 0, 0, 0], 
+                     [0, 0, 0, 0, 0, 0]])
 
     def eval(self, player):
         return 0
@@ -257,9 +261,13 @@ canvas1 = tk.Canvas(window, bg="blue", width=width, height=height)
 for i in range(7):
     disks.append(list())
     for j in range(5, -1, -1):
-        disks[i].append(canvas1.create_oval(row_margin + i * row_width, row_margin + j * row_height, (i + 1) * row_width - row_margin,
-                            (j + 1) * row_height - row_margin, fill='white'))
-
+        disks[i].append(canvas1.create_oval(
+            row_margin + i * row_width, row_margin + j * row_height, 
+            (i + 1) * row_width - row_margin,
+            (j + 1) * row_height - row_margin, 
+            fill='white'
+        )
+    )
 
 canvas1.grid(row=0, column=0, columnspan=2)
 
