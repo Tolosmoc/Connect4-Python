@@ -74,87 +74,116 @@ class Board:
 
     def eval(self, player):
         r = 0
-        if self.check_three(player):
-            r += 5
+        pot = self.check_three(player)
+        if pot > 0:
+            r += 5*pot
         else:
             r += -5
         return 1 if r==0 else r
 
-    # TODO : check_three_empty (in progress...)
-    """
-    def check_three_empty(self, player): # Vérifie un allignement de trois avec une case vide
-        directions = [(0, 1), (1, 0), (1, 1), (-1, 1)]
-
-        for direction in directions:
-            count = 1  # Nombre de pions alignés
-            empty_cell = None  # Vérifie cellule vide
-
-            for i in range(1, 4):  # On parcourt les trois positions suivantes dans la direction donnée
-                dx, dy = direction
-                new_row, new_col = row + i * dx, col + i * dy
-
-                # Vérifier si la nouvelle position est à l'intérieur du plateau
-                if 0 <= new_row < len(board) and 0 <= new_col < len(board[0]):
-                    if board[new_row][new_col] == player:
-                        count += 1
-                    elif board[new_row][new_col] is None:
-                        empty_cell = (new_row, new_col)
-                    else:
-                        break
-                else:
-                    break
-
-            # Si trois pions de la même couleur sont alignés avec un emplacement vide
-            if count == 3 and empty_cell:
-                return True, empty_cell
-
-        return False, None
-    """
-
     def check_three(self, player):
+        flag = 0
         # Horizontal alignment check
         for line in range(6):
             for horizontal_shift in range(4):
-                if (
-                        self.grid[horizontal_shift][line] == self.grid[horizontal_shift + 1][line]
-                        == self.grid[horizontal_shift + 2][line] != 0
-                ) and (
-                        self.grid[horizontal_shift + 3][line] == 0
+                if (    # si 0XXX
+                    (self.grid[horizontal_shift + 1][line] ==
+                    self.grid[horizontal_shift + 2][line] ==
+                    self.grid[horizontal_shift + 3][line] != 0
+                    ) and (self.grid[horizontal_shift][line] == 0)
                 ):
-                    return True
+                    flag += 1
+                elif (  # si X0XX
+                    (self.grid[horizontal_shift][line] ==
+                    self.grid[horizontal_shift + 2][line] ==
+                    self.grid[horizontal_shift + 3][line] != 0
+                    ) and (self.grid[horizontal_shift + 1][line] == 0)
+                ):
+                    flag += 1
+                elif (  # si XX0X
+                    (self.grid[horizontal_shift][line] ==
+                    self.grid[horizontal_shift + 1][line] ==
+                    self.grid[horizontal_shift + 3][line] != 0
+                    ) and (self.grid[horizontal_shift + 2][line] == 0)
+                ):
+                    flag += 1
+                elif (  # si XXX0
+                    (self.grid[horizontal_shift][line] ==
+                    self.grid[horizontal_shift + 1][line] ==
+                    self.grid[horizontal_shift + 2][line] != 0
+                    ) and (self.grid[horizontal_shift + 3][line] == 0)
+                ):
+                    flag += 1
         # Vertical alignment check
         for column in range(7):
             if self.grid[column][-1] == 0:
                 for vertical_shift in range(3):
-                    if self.grid[column][vertical_shift] == self.grid[column][vertical_shift + 1] == \
-                            self.grid[column][vertical_shift + 2] != 0:
-                        return True
+                    if (    # si XXX0 vers le haut
+                        self.grid[column][vertical_shift] ==
+                        self.grid[column][vertical_shift + 1] ==
+                        self.grid[column][vertical_shift + 2] != 0
+                    ):
+                        flag += 1
         # Diagonal alignment check
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
-                if (
-                    (
-                        self.grid[horizontal_shift][vertical_shift]
-                        == self.grid[horizontal_shift + 1][vertical_shift + 1]
-                        == self.grid[horizontal_shift + 2][vertical_shift + 2]
-                        != 0
-                    ) and (
-                        self.grid[horizontal_shift + 3][vertical_shift + 3] == 0
-                    )
+                if (    # si 0XXX vers le heut à droite
+                    (self.grid[horizontal_shift + 1][vertical_shift + 1] ==
+                    self.grid[horizontal_shift + 2][vertical_shift + 2] ==
+                    self.grid[horizontal_shift + 3][vertical_shift + 3] != 0
+                    ) and (self.grid[horizontal_shift][vertical_shift] == 0)
                 ):
-                    return True
-                elif (
-                    (
-                        self.grid[horizontal_shift][5 - vertical_shift]
-                        == self.grid[horizontal_shift + 1][4 - vertical_shift]
-                        == self.grid[horizontal_shift + 2][3 - vertical_shift]
-                        != 0
-                    ) and (
-                        self.grid[horizontal_shift + 3][2 - vertical_shift] == 0
-                    )
+                    flag += 1
+                elif (  # si X0XX vers le heut à droite
+                    (self.grid[horizontal_shift][vertical_shift] ==
+                    self.grid[horizontal_shift + 2][vertical_shift + 2] ==
+                    self.grid[horizontal_shift + 3][vertical_shift + 3] != 0
+                    ) and (self.grid[horizontal_shift + 1][vertical_shift + 1] == 0)
                 ):
-                    return True
-        return False
+                    flag += 1
+                elif (  # si XX0X vers le heut à droite
+                    (self.grid[horizontal_shift][vertical_shift] ==
+                    self.grid[horizontal_shift + 1][vertical_shift + 1] ==
+                    self.grid[horizontal_shift + 3][vertical_shift + 3] != 0
+                    ) and (self.grid[horizontal_shift + 2][vertical_shift + 2] == 0)
+                ):
+                    flag += 1
+                elif (  # si XXX0 vers le heut à droite
+                    (self.grid[horizontal_shift][vertical_shift] ==
+                    self.grid[horizontal_shift + 1][vertical_shift + 1] ==
+                    self.grid[horizontal_shift + 2][vertical_shift + 2] != 0
+                    ) and (self.grid[horizontal_shift + 3][vertical_shift + 3] == 0)
+                ):
+                    flag += 1
+                elif (  # si 0XXX vers le heut à gauche
+                    (self.grid[horizontal_shift + 2][vertical_shift + 1] ==
+                    self.grid[horizontal_shift + 1][vertical_shift + 2] ==
+                    self.grid[horizontal_shift][vertical_shift + 3] != 0
+                    ) and (self.grid[horizontal_shift + 3][vertical_shift] == 0)
+                ):
+                    flag += 1
+                elif (  # si X0XX vers le heut à gauche
+                    (self.grid[horizontal_shift + 3][vertical_shift] ==
+                    self.grid[horizontal_shift + 1][vertical_shift + 2] ==
+                    self.grid[horizontal_shift][vertical_shift + 3] != 0
+                    ) and (self.grid[horizontal_shift + 2][vertical_shift + 1] == 0)
+                ):
+                    flag += 1
+                elif (  # si XX0X vers le heut à gauche
+                    (self.grid[horizontal_shift + 3][vertical_shift] ==
+                    self.grid[horizontal_shift + 2][vertical_shift + 1] ==
+                    self.grid[horizontal_shift][vertical_shift + 3] != 0
+                    ) and (self.grid[horizontal_shift + 1][vertical_shift + 2] == 0)
+                ):
+                    flag += 1
+                elif (  # si XXX0 vers le heut à gauche
+                    (self.grid[horizontal_shift + 3][vertical_shift] ==
+                    self.grid[horizontal_shift + 1][vertical_shift + 1] ==
+                    self.grid[horizontal_shift + 2][vertical_shift + 2] != 0
+                    ) and (self.grid[horizontal_shift][vertical_shift + 3] == 0)
+                ):
+                    flag += 1
+        return flag
 
     def copy(self):
         new_board = Board()
@@ -193,26 +222,31 @@ class Board:
         # Horizontal alignment check
         for line in range(6):
             for horizontal_shift in range(4):
-                if self.grid[horizontal_shift][line] == self.grid[horizontal_shift + 1][line] == \
-                        self.grid[horizontal_shift + 2][line] == self.grid[horizontal_shift + 3][line] != 0:
+                if self.grid[horizontal_shift][line] == \
+                        self.grid[horizontal_shift + 1][line] == \
+                        self.grid[horizontal_shift + 2][line] == \
+                        self.grid[horizontal_shift + 3][line] != 0:
                     return True
         # Vertical alignment check
         for column in range(7):
             for vertical_shift in range(3):
-                if self.grid[column][vertical_shift] == self.grid[column][vertical_shift + 1] == \
-                        self.grid[column][vertical_shift + 2] == self.grid[column][vertical_shift + 3] != 0:
+                if self.grid[column][vertical_shift] == \
+                        self.grid[column][vertical_shift + 1] == \
+                        self.grid[column][vertical_shift + 2] == \
+                        self.grid[column][vertical_shift + 3] != 0:
                     return True
         # Diagonal alignment check
         for horizontal_shift in range(4):
             for vertical_shift in range(3):
-                if self.grid[horizontal_shift][vertical_shift] == self.grid[horizontal_shift + 1][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == self.grid[horizontal_shift + 3][
-                    vertical_shift + 3] != 0:
+                if self.grid[horizontal_shift][vertical_shift] == \
+                        self.grid[horizontal_shift + 1][vertical_shift + 1] == \
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == \
+                        self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
                     return True
-                elif self.grid[horizontal_shift][5 - vertical_shift] == self.grid[horizontal_shift + 1][
-                    4 - vertical_shift] == \
-                        self.grid[horizontal_shift + 2][3 - vertical_shift] == self.grid[horizontal_shift + 3][
-                    2 - vertical_shift] != 0:
+                elif self.grid[horizontal_shift][vertical_shift + 3] == \
+                        self.grid[horizontal_shift + 1][vertical_shift + 2] == \
+                        self.grid[horizontal_shift + 2][vertical_shift + 1] == \
+                        self.grid[horizontal_shift + 3][vertical_shift] != 0:
                     return True
         return False
 
@@ -233,8 +267,8 @@ class Connect4:
         self.board.reinit()
         self.turn = 0
         information['fg'] = 'black'
-        information['text'] = "Turn " + str(self.turn) + " - Player " + str(
-            self.current_player()) + " is playing"
+        information['text'] = "Turn " + str(self.turn) + " - Player " + \
+                str(self.current_player()) + " is playing"
         self.human_turn = False
         self.players = (combobox_player1.current(), combobox_player2.current())
         self.handle_turn()
