@@ -4,7 +4,10 @@ import numpy as np
 import random as rnd
 from threading import Thread
 from queue import Queue
+import concurrent.futures
+from queue import Queue
 
+infini = float('inf')
 
 disk_color = ['white', 'red', 'yellow']  # TODO : change 'yellow' by 'orange'
 disks = list()
@@ -12,56 +15,54 @@ player_type = ['human']
 for i in range(42):
     player_type.append('AI: alpha-beta level ' + str(i + 1))
 
-
-def alpha_beta_decision(board, turn, ai_level, queue, max_player):
-    player = max_player
+def alpha_beta_decision(board, turn, ia_depth, queue, current_player):
+    player = current_player
     best_move = board.get_possible_moves()[0]
-    best_value = -20
-    A = -20
-    B = 20
+    A = -infini
+    B = infini
+    best_value = A
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = min_value_AB(new_board, turn + 1, ai_level, player % 2 + 1, A, B)
+        value = min_value_AB(new_board, turn + 1, ia_depth, player % 2 + 1, A, B)
         if value > best_value:
             best_value = value
             best_move = move
     queue.put(best_move)
 
-def min_value_AB(board, turn, ia_level, player, A, B):
-    if board.check_victory():
-        return 10000
+def min_value_AB(board, turn, ia_depth, player, A, B):
+    if board.check_victory() > 0:
+        return 1000*board.check_victory() + board.eval(player)
     elif turn > 42:
         return 0
-    elif ia_level == 0:
+    elif ia_depth == 0:
         return board.eval(player)
-    value = 20
+    value = infini
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = min(value, max_value_AB(new_board, turn + 1, ia_level, player % 2 + 1, A, B))
-        if value <= A:
-            return value
+        value = min(value, max_value_AB(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B))
         B = min(B, value)
+        if B <= A:
+            return value
     return value
 
-def max_value_AB(board, turn, ia_level, player, A, B):
-    if board.check_victory():
-        return -10000
+def max_value_AB(board, turn, ia_depth, player, A, B):
+    if board.check_victory() > 0:
+        return -1000*board.check_victory() + board.eval(player)
     elif turn > 42:
         return 0
-    elif ia_level == 0:
+    elif ia_depth == 0:
         return (-1 * board.eval(player))
-    value = -20
+    value = -infini
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = max(value, min_value_AB(new_board, turn + 1, ia_level - 1, player % 2 + 1, A, B))
-        if value >= B:
-            return value
+        value = max(value, min_value_AB(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B))
         A = max(A, value)
+        if B <= A:
+            return value
     return value
-
 
 class Board:
     grid = np.array([[0, 0, 0, 0, 0, 0], 
@@ -78,8 +79,8 @@ class Board:
         if pot > 0:
             r += 5*pot
         else:
-            r += -5
-        return 1 if r==0 else r
+            r = 1
+        return r
 
     def check_three(self, player):
         flag = 0
@@ -185,6 +186,39 @@ class Board:
                     flag += 1
         return flag
 
+    def check_victory(self):
+        flag = 0
+        # Horizontal alignment check
+        for line in range(6):
+            for horizontal_shift in range(4):
+                if self.grid[horizontal_shift][line] == \
+                        self.grid[horizontal_shift + 1][line] == \
+                        self.grid[horizontal_shift + 2][line] == \
+                        self.grid[horizontal_shift + 3][line] != 0:
+                    flag += 1
+        # Vertical alignment check
+        for column in range(7):
+            for vertical_shift in range(3):
+                if self.grid[column][vertical_shift] == \
+                        self.grid[column][vertical_shift + 1] == \
+                        self.grid[column][vertical_shift + 2] == \
+                        self.grid[column][vertical_shift + 3] != 0:
+                    flag += 1
+        # Diagonal alignment check
+        for horizontal_shift in range(4):
+            for vertical_shift in range(3):
+                if self.grid[horizontal_shift][vertical_shift] == \
+                        self.grid[horizontal_shift + 1][vertical_shift + 1] == \
+                        self.grid[horizontal_shift + 2][vertical_shift + 2] == \
+                        self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
+                    flag += 1
+                elif self.grid[horizontal_shift][vertical_shift + 3] == \
+                        self.grid[horizontal_shift + 1][vertical_shift + 2] == \
+                        self.grid[horizontal_shift + 2][vertical_shift + 1] == \
+                        self.grid[horizontal_shift + 3][vertical_shift] != 0:
+                    flag += 1
+        return flag
+
     def copy(self):
         new_board = Board()
         new_board.grid = np.array(self.grid, copy=True)
@@ -217,38 +251,6 @@ class Board:
 
     def column_filled(self, column):
         return self.grid[column][5] != 0
-
-    def check_victory(self):
-        # Horizontal alignment check
-        for line in range(6):
-            for horizontal_shift in range(4):
-                if self.grid[horizontal_shift][line] == \
-                        self.grid[horizontal_shift + 1][line] == \
-                        self.grid[horizontal_shift + 2][line] == \
-                        self.grid[horizontal_shift + 3][line] != 0:
-                    return True
-        # Vertical alignment check
-        for column in range(7):
-            for vertical_shift in range(3):
-                if self.grid[column][vertical_shift] == \
-                        self.grid[column][vertical_shift + 1] == \
-                        self.grid[column][vertical_shift + 2] == \
-                        self.grid[column][vertical_shift + 3] != 0:
-                    return True
-        # Diagonal alignment check
-        for horizontal_shift in range(4):
-            for vertical_shift in range(3):
-                if self.grid[horizontal_shift][vertical_shift] == \
-                        self.grid[horizontal_shift + 1][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 2] == \
-                        self.grid[horizontal_shift + 3][vertical_shift + 3] != 0:
-                    return True
-                elif self.grid[horizontal_shift][vertical_shift + 3] == \
-                        self.grid[horizontal_shift + 1][vertical_shift + 2] == \
-                        self.grid[horizontal_shift + 2][vertical_shift + 1] == \
-                        self.grid[horizontal_shift + 3][vertical_shift] != 0:
-                    return True
-        return False
 
 
 class Connect4:
@@ -283,9 +285,9 @@ class Connect4:
             column = event.x // row_width
             self.move(column)
 
-    def ai_turn(self, ai_level):
+    def ai_turn(self, ia_depth):
         Thread(target=alpha_beta_decision, 
-               args=(self.board, self.turn, ai_level, self.ai_move, self.current_player(),)
+               args=(self.board, self.turn, ia_depth, self.ai_move, self.current_player(),)
             ).start()
         self.ai_wait_for_move()
 
