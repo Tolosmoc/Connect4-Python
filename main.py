@@ -21,18 +21,31 @@ def alpha_beta_decision(board, turn, ia_depth, queue, current_player):
     A = -infini
     B = infini
     best_value = A
+
+    results_queue = Queue()
+    threads = []
+    
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = min_value_AB(new_board, turn + 1, ia_depth, player % 2 + 1, A, B)
+
+        thread = Thread(target=min_value_AB, args=(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B, move, results_queue))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    # Collect the results from the threads
+    while not results_queue.empty():
+        move, value = results_queue.get()
         if value > best_value:
             best_value = value
-            best_move = move
+            best_move = move  
     queue.put(best_move)
 
-def min_value_AB(board, turn, ia_depth, player, A, B):
+def min_value_AB(board, turn, ia_depth, player, A, B, _move, results_queue):
     if board.check_victory() > 0:
-        return 1000*board.check_victory() + board.eval(player)
+        return 1000*board.check_victory()
     elif turn > 42:
         return 0
     elif ia_depth == 0:
@@ -41,15 +54,17 @@ def min_value_AB(board, turn, ia_depth, player, A, B):
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = min(value, max_value_AB(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B))
+        value = min(value, max_value_AB(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B, _move, results_queue))
         B = min(B, value)
         if B <= A:
+            results_queue.put((_move, value))
             return value
     return value
 
-def max_value_AB(board, turn, ia_depth, player, A, B):
+def max_value_AB(board, turn, ia_depth, player, A, B, _move, results_queue):
+    # board.check_victory(player)
     if board.check_victory() > 0:
-        return -1000*board.check_victory() + board.eval(player)
+        return -1000*board.check_victory()
     elif turn > 42:
         return 0
     elif ia_depth == 0:
@@ -58,9 +73,10 @@ def max_value_AB(board, turn, ia_depth, player, A, B):
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = max(value, min_value_AB(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B))
+        value = max(value, min_value_AB(new_board, turn + 1, ia_depth - 1, player % 2 + 1, A, B, _move, results_queue))
         A = max(A, value)
         if B <= A:
+            results_queue.put((_move, value))
             return value
     return value
 
