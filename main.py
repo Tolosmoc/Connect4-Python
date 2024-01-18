@@ -1,12 +1,15 @@
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
-import random as rnd
+import random as rd
 from threading import Thread
 from queue import Queue
 
-disk_color = ['white', 'red', 'yellow']  # TODO : change 'yellow' by 'orange'
+disk_color = ['white', 'red', 'yellow']
 disks = list()
+
+MAX_Value = 100000
+MIN_Value = -100000
 
 player_type = ['human']
 for i in range(42):
@@ -16,50 +19,49 @@ for i in range(42):
 def alpha_beta_decision(board, turn, ai_level, queue, max_player):
     player = max_player
     best_move = board.get_possible_moves()[0]
-    best_value = -20
-    A = -20
-    B = 20
+    best_value = MIN_Value
+    A = MIN_Value
+    B = MAX_Value
     for move in board.get_possible_moves():
-        # print(turn)
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = min_value_AB(new_board, turn + 1, ai_level, player % 2 + 1, A, B)
+        value = min_value_AB(new_board, turn + 1, ai_level, player % 2 + 1, A, B, max_player)
         if value > best_value:
             best_value = value
             best_move = move
     queue.put(best_move)
 
 
-def min_value_AB(board, turn, ia_level, player, A, B):
+def min_value_AB(board, turn, ia_level, player, A, B, ia_player):
     if board.check_victory():
-        return 10000
+        return MAX_Value
     elif turn > 42:
         return 0
     elif ia_level == 0:
-        return board.eval(player)
-    value = 20
+        return board.eval(ia_player)
+    value = MAX_Value
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = min(value, max_value_AB(new_board, turn + 1, ia_level, player % 2 + 1, A, B))
+        value = min(value, max_value_AB(new_board, turn + 1, ia_level - 1, player % 2 + 1, A, B, ia_player))
         if value <= A:
             return value
         B = min(B, value)
     return value
 
 
-def max_value_AB(board, turn, ia_level, player, A, B):
+def max_value_AB(board, turn, ia_level, player, A, B, ia_player):
     if board.check_victory():
-        return -10000
+        return MIN_Value
     elif turn > 42:
         return 0
     elif ia_level == 0:
-        return (-1 * board.eval(player))
-    value = -20
+        return board.eval(ia_player)
+    value = MIN_Value
     for move in board.get_possible_moves():
         new_board = board.copy()
         new_board.add_disk(move, player, False)
-        value = max(value, min_value_AB(new_board, turn + 1, ia_level - 1, player % 2 + 1, A, B))
+        value = max(value, min_value_AB(new_board, turn + 1, ia_level - 1, player % 2 + 1, A, B, ia_player))
         if value >= B:
             return value
         A = max(A, value)
@@ -67,92 +69,73 @@ def max_value_AB(board, turn, ia_level, player, A, B):
 
 
 class Board:
-    grid = np.array([[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
+    grid = np.array([[0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0]])
 
-    def eval(self, player):
+    def eval(self, ia_player):
         r = 0
-        if self.check_three(player):
-            r += 5
-        else:
-            r += -5
-        return 1 if r==0 else r
+        for i in range(7):
+            for j in range(6):
+                if i < 4:
+                    if j < 3:
+                        directions = [(0, 1), (1, 0), (1, 1), (-1, 1)]
+                    else:
+                        directions = [(0, 1), (-1, 1)]
+                elif j < 3:
+                    directions = [(1, 0)]
+                else:
+                    directions = []
+                if self.grid[i][j] == ia_player:
+                    r += self.check_three_empty(ia_player, i, j, directions, 0)
+                elif self.grid[i][j] == ia_player % 2 + 1:
+                    r -= self.check_three_empty(ia_player % 2 + 1, i, j, directions, 0)
+                else:
+                    r += self.check_three_empty(ia_player, i, j, directions, (i, j))
+                    r -= self.check_three_empty(ia_player % 2 + 1, i, j, directions, (i, j))
+        return 1 if r == 0 else r
 
-    # TODO : check_three_empty (in progress...)
-    """
-    def check_three_empty(self, player): # Vérifie un allignement de trois avec une case vide
-        directions = [(0, 1), (1, 0), (1, 1), (-1, 1)]
+    def check_three_empty(self, player, row, col, directions, cell):  # Vérifie un allignement de trois avec une case vide
 
+        reward = 0
         for direction in directions:
-            count = 1  # Nombre de pions alignés
-            empty_cell = None  # Vérifie cellule vide
+            count = 1 if cell != 0 else 0   # Nombre de pions alignés
+            empty_cell = cell               # Vérifie cellule vide
 
-            for i in range(1, 4):  # On parcourt les trois positions suivantes dans la direction donnée
+            # Parcourt des trois positions suivantes dans la direction donnée
+            for i in range(1, 4):
                 dx, dy = direction
                 new_row, new_col = row + i * dx, col + i * dy
 
-                # Vérifier si la nouvelle position est à l'intérieur du plateau
-                if 0 <= new_row < len(board) and 0 <= new_col < len(board[0]):
-                    if board[new_row][new_col] == player:
+                # Vérifie si la nouvelle position est à l'intérieur du plateau
+                if 0 <= new_row < 7 and 0 <= new_col < 6:
+                    if self.grid[new_row][new_col] == player:
                         count += 1
-                    elif board[new_row][new_col] is None:
+                    elif self.grid[new_row][new_col] == 0 and empty_cell == 0:
                         empty_cell = (new_row, new_col)
                     else:
-                        break
+                        return 0
                 else:
-                    break
+                    return 0
 
             # Si trois pions de la même couleur sont alignés avec un emplacement vide
-            if count == 3 and empty_cell:
-                return True, empty_cell
+            if count == 3 and empty_cell != 0:
+                reward += 7
+                for k in range(empty_cell[0]):
+                    if self.grid[empty_cell[0]-k][empty_cell[1]] == 0:
+                        reward -= 0.5
+            """
+            # Si deux pions de la même couleur
+            elif count == 2:
+                reward = 2
+            """
 
-        return False, None
-    """
+        return reward
 
-    def check_three(self, player):
-        # Horizontal alignment check
-        for line in range(6):
-            for horizontal_shift in range(4):
-                if (
-                        self.grid[horizontal_shift][line] == self.grid[horizontal_shift + 1][line]
-                        == self.grid[horizontal_shift + 2][line] != 0
-                ) and (
-                        self.grid[horizontal_shift + 3][line] == 0
-                ):
-                    return True
-        # Vertical alignment check
-        for column in range(7):
-            if self.grid[column][-1] == 0:
-                for vertical_shift in range(3):
-                    if self.grid[column][vertical_shift] == self.grid[column][vertical_shift + 1] == \
-                            self.grid[column][vertical_shift + 2] != 0:
-                        return True
-        # Diagonal alignment check
-        for horizontal_shift in range(4):
-            for vertical_shift in range(3):
-                if (
-                    (
-                        self.grid[horizontal_shift][vertical_shift]
-                        == self.grid[horizontal_shift + 1][vertical_shift + 1]
-                        == self.grid[horizontal_shift + 2][vertical_shift + 2]
-                        != 0
-                    ) and (
-                        self.grid[horizontal_shift + 3][vertical_shift + 3] == 0
-                    )
-                ):
-                    return True
-                elif (
-                    (
-                        self.grid[horizontal_shift][5 - vertical_shift]
-                        == self.grid[horizontal_shift + 1][4 - vertical_shift]
-                        == self.grid[horizontal_shift + 2][3 - vertical_shift]
-                        != 0
-                    ) and (
-                        self.grid[horizontal_shift + 3][2 - vertical_shift] == 0
-                    )
-                ):
-                    return True
-        return False
 
     def copy(self):
         new_board = Board()
